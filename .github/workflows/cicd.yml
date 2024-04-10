@@ -1,43 +1,64 @@
 #
-# Example GitHub Actions config for UW-IT AXD2 app testing and publishing to PyPi
+# GitHub Actions config that drives UW-IT AXD2 integration and deployment
 #
 # Preconditions:
 #
-#  1) Application test suite is kicked off by DIR_NAME/test.py
+#  1) Application docker build is based on django-container
 #
-#  2) Application contains a setup.py file
+#  2) Application test suite is kicked off in docker/test.sh
 #
-#  3) Application repo has access to the required secret
+#  3) Application repo has access to the two secrets
 #     at https://github.com/organizations/uw-it-aca/settings/secrets:
 #
-#     PYPI_API_TOKEN
+#     GH_AUTH_TOKEN: Grants access to private flux deployment repo
+#     GCP_JSON_KEY: Grants access to Google Cloud Registry
 #
-# To adapt this config to a specific Python app:
+# To adapt this config file to a specific django project:
 #
-#  1) Set DIR_NAME to the name of the package name/directory.
+#  1) Set RELEASE_NAME suitable for deployment to k8s. RELEASE_NAME must
+#     match the "repo" value in docker/*-values.yml.
 #
-#  2) Verify that the lists of branches for push/pull_request is appropriate,
-#     and add other branch names if needed.
+#  2) Set DJANGO_APP to the name of the django project name/directory.
+#
+#  3) Verify that the lists of branches for push/pull_request is appropriate,
+#     and add other branch names if needed.  Additional branch names must
+#     also have steps defined in the deploy job
+#
+#  4) Confirm that the build steps are suitable.  Likely they are, but
+#     some projects have an intermediate build step that could benefit
+#     from caching, so it may be useful to augment the build steps.
 #
 ---
-name: 'Lint and Test'
+name: 'Build, Test, and Deploy'
 
 env:
-  DIR_NAME: uw_spotseeker
+  DJANGO_APP: test_app
 
 on:
   push:
-    branches: [main, qa, develop, django-upgrade]
+    branches: [main, qa, develop]
   pull_request:
-    branches: [main, qa, develop, django-upgrade]
+    branches: [main, qa, develop]
     types: [opened, reopened, synchronize]
-  release:
-    branches: [main]
-    types: [published]
 
 jobs:
-  test:
+  context:
     runs-on: ubuntu-20.04
+
+    outputs:
+      commit-hash: ${{ steps.context.outputs.commit-hash }}
+      git_repo_branch: ${{ steps.context.outputs.git_repo_branch }}
+      image_tag: ${{ steps.context.outputs.image_tag }}
+
+    steps:
+      - name: Set up Context
+        id: context
+        uses: uw-it-aca/actions/cicd-context@main
+  
+  build:
+    runs-on: ubuntu-20.04  # TODO: update to 22.04
+
+    needs: context
 
     steps:
       - name: Checkout Repo
@@ -48,24 +69,82 @@ jobs:
         with:
           python-version: '3.8'
 
-      - name: Install Dependencies
+      # This repo can't use the standard pycodestyle / license checker because
+      # of code contributed from other institutions
+      - name: Run Pycodestyle
+        shell: bash
         run: |
-          python -m pip install --upgrade pip
-          pip install -e .
-          pip install commonconf nose2 coverage coveralls==3.3.1
+          pip install pycodestyle
+          pycodestyle ${DJANGO_APP}/ --exclude=migrations
 
-      - name: Run Python Linters
-        uses: uw-it-aca/actions/python-linters@main
+      - name: Check for UIUC License Headers
+        shell: bash
+        run: |
+          DISPATCH_LICENSE_ERR=$(find ${DJANGO_APP} -type f -size +0 -path "*/dispatch.py" -name "*.py" -exec grep -PzL "# Copyright 2013 Board of Trustees, University of Illinois\n# SPDX-License-Identifier: Apache-2.0" {} \;)
+          FILTERS_LICENSE_ERR=$(find ${DJANGO_APP} -type f -size +0 -not -path "*/org_filters/uw_search.py" -path "*/org_filters/*" -name "*.py" -exec grep -PzL "# Copyright 2013 Board of Trustees, University of Illinois\n# SPDX-License-Identifier: Apache-2.0" {} \;)
+          LICENSE_ERR=$DISPATCH_LICENSE_ERR$FILTERS_LICENSE_ERR
+          if [[ ! -z $LICENSE_ERR ]]; then
+            echo "Missing License or Copyright information:"
+            echo "$LICENSE_ERR"
+            exit 1
+          fi
+
+      - name: Check for UW License Headers
+        shell: bash
+        run: |
+          LICENSE_ERR=$(find ${DJANGO_APP} -type f -size +0 -not -path "*/migrations/*" -not -path "*/org_filters/*" -not -path "*/dispatch.py" -name "*.py" -exec grep -PzL "# Copyright $(date +'%Y') UW-IT, University of Washington\n# SPDX-License-Identifier: Apache-2.0" {} \;)
+          if [[ ! -z $LICENSE_ERR ]]; then
+            echo "Missing License or Copyright information:"
+            echo "$LICENSE_ERR"
+            exit 1
+          fi
+
+      - name: Se up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Cache Docker layers
+        uses: actions/cache@v2
         with:
-          app_name: ${DIR_NAME}
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-$(echo ${{ hashFiles('Dockerfile') }} | head -c 16)
+          restore-keys: |
+            ${{ runner.os }}-buildx-
 
-      - name: Run Tests
-        run: |
-          python -m compileall ${DIR_NAME}/
-          coverage run ${DIR_NAME}/test.py -v
+      - name: Build App Image
+        uses: docker/build-push-action@v2
+        with:
+          target: app-container
+          tags: ${{ needs.context.outputs.image_tag }}
+          push: false
+          load: true
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache
 
-      - name: Report Test Coverage
+      - name: Build Test Image
+        uses: docker/build-push-action@v2
+        with:
+          target: app-test-container
+          tags: app-test-container
+          push: false
+          load: true
+
+      - name: Run Test in Image
+        id: tests
+        shell: bash
+        run: >-
+          docker run -u root -t
+          -v ${PWD}:/coverage
+          -e DJANGO_APP="$DJANGO_APP"
+          -e "ENV=localdev"
+          app-test-container
+          bash -c ". ./docker/test.sh"
+
+      - name: Record Test Results
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
-        run: coveralls
+        run: |
+          python -m pip install --upgrade pip coverage coveralls==3.3.1
+          coverage combine
+          coveralls
+
