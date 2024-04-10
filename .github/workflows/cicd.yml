@@ -32,7 +32,7 @@
 name: 'Build, Test, and Deploy'
 
 env:
-  DJANGO_APP: test_app
+  DJANGO_APP: docker/test_app
 
 on:
   push:
