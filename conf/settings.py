@@ -1,4 +1,4 @@
-# Copyright 2023 UW-IT, University of Washington
+# Copyright 2024 UW-IT, University of Washington
 # SPDX-License-Identifier: Apache-2.0
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
@@ -14,16 +14,16 @@ APP_NAME = os.getenv("APP_NAME", "test-app")
 
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'test_app', 'templates')],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.debug',
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
-                'django.template.context_processors.request',
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [os.path.join(BASE_DIR, "test_app", "templates")],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.debug",
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
+                "django.template.context_processors.request",
             ],
         },
     },
@@ -31,9 +31,7 @@ TEMPLATES = [
 
 # spotseeker server api stuff
 RESTCLIENTS_SPOTSEEKER_HOST = os.getenv("RESTCLIENTS_SPOTSEEKER_HOST", None)
-RESTCLIENTS_SPOTSEEKER_DAO_CLASS = os.getenv(
-    "RESTCLIENTS_SPOTSEEKER_DAO_CLASS", "Mock"
-)
+RESTCLIENTS_SPOTSEEKER_DAO_CLASS = os.getenv("RESTCLIENTS_SPOTSEEKER_DAO_CLASS", "Mock")
 SPOTSEEKER_OAUTH_CREDENTIAL = os.getenv("CREDENTIAL", "")
 
 READ_SCOPE = os.getenv("READ_SCOPE", "read")
@@ -52,8 +50,8 @@ if DEBUG and not DEBUG_CACHING:
     }
 else:
     CACHES = {
-        'default': {
-            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-            'LOCATION': APP_NAME,
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": APP_NAME,
         }
     }
