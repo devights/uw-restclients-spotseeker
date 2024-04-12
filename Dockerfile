@@ -1,18 +1,17 @@
-ARG DJANGO_CONTAINER_VERSION=1.4.1
+ARG DJANGO_CONTAINER_VERSION=2.0.1
 
-FROM gcr.io/uwit-mci-axdd/django-container:${DJANGO_CONTAINER_VERSION} as app-container
+FROM us-docker.pkg.dev/uwit-mci-axdd/containers/django-container:${DJANGO_CONTAINER_VERSION} as app-container
 
 USER acait
 
-ADD --chown=acait:acait ./setup.py /app/
+COPY --chown=acait:acait ./docker /app/
+COPY --chown=acait:acait ./setup.py /app/
+COPY --chown=acait:acait ./uw_spotseeker/ /app/uw_spotseeker
 
-ADD --chown=acait:acait ./docker/test-app/test_app/ /app/test_app
-ADD --chown=acait:acait ./uw_spotseeker/ /app/uw_spotseeker/
-
-ADD --chown=acait:acait ./docker/settings.py /app/project/
-ADD --chown=acait:acait ./docker/urls.py /app/project/
+COPY --chown=acait:acait ./conf/urls.py /app/project/urls.py
+COPY --chown=acait:acait ./conf/settings.py /app/project/settings.py
 
 WORKDIR /app/
 
-RUN . /app/bin/activate && pip install .
+RUN . /app/bin/activate && pip install --no-cache-dir .
 RUN /app/bin/python manage.py migrate

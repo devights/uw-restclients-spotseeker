@@ -7,7 +7,7 @@ services:
       context: .
       target: app-container
     volumes:
-      - ./docker/test-app/test_app:/app/test_app
+      - ./docker/test_app:/app/test_app
       - ./uw_spotseeker:/app/uw_spotseeker
     ports:
       - "${PORT:-8003}:8000"
