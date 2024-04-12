@@ -1,150 +1,101 @@
 #
-# GitHub Actions config that drives UW-IT AXD2 integration and deployment
+# Example GitHub Actions config for UW-IT AXD2 app testing and publishing to PyPi
 #
 # Preconditions:
 #
-#  1) Application docker build is based on django-container
+#  1) Application contains a setup.py file
 #
-#  2) Application test suite is kicked off in docker/test.sh
+# To adapt this config to a specific Python app:
 #
-#  3) Application repo has access to the two secrets
-#     at https://github.com/organizations/uw-it-aca/settings/secrets:
+#  1) Set APP_NAME to the name of the package name/directory.
 #
-#     GH_AUTH_TOKEN: Grants access to private flux deployment repo
-#     GCP_JSON_KEY: Grants access to Google Cloud Registry
-#
-# To adapt this config file to a specific django project:
-#
-#  1) Set RELEASE_NAME suitable for deployment to k8s. RELEASE_NAME must
-#     match the "repo" value in docker/*-values.yml.
-#
-#  2) Set DJANGO_APP to the name of the django project name/directory.
+#  2) Set CONF_PATH to a path containing a urls.py and/or settings.py file
+#     used by the test suite, if any
 #
 #  3) Verify that the lists of branches for push/pull_request is appropriate,
-#     and add other branch names if needed.  Additional branch names must
-#     also have steps defined in the deploy job
+#     and add other branch names if needed.
 #
-#  4) Confirm that the build steps are suitable.  Likely they are, but
-#     some projects have an intermediate build step that could benefit
-#     from caching, so it may be useful to augment the build steps.
+#  4) Update the matrix of django versions to test, if necessary.
 #
 ---
-name: 'Build, Test, and Deploy'
+name: tests
 
 env:
-  DJANGO_APP: docker/test_app
+  APP_NAME: uw-spotseeker
+  CONF_PATH: conf
+  COVERAGE_DJANGO_VERSION: '4.2'
+  COVERAGE_PYTHON_VERSION: '3.10'
 
 on:
   push:
-    branches: [main, qa, develop]
+    branches: [main, develop]
   pull_request:
-    branches: [main, qa, develop]
+    branches: [main, develop]
     types: [opened, reopened, synchronize]
+  release:
+    branches: [main]
+    types: [published]
 
 jobs:
-  context:
-    runs-on: ubuntu-20.04
+  test:
+    runs-on: ubuntu-22.04
 
-    outputs:
-      commit-hash: ${{ steps.context.outputs.commit-hash }}
-      git_repo_branch: ${{ steps.context.outputs.git_repo_branch }}
-      image_tag: ${{ steps.context.outputs.image_tag }}
-
-    steps:
-      - name: Set up Context
-        id: context
-        uses: uw-it-aca/actions/cicd-context@main
-  
-  build:
-    runs-on: ubuntu-20.04  # TODO: update to 22.04
-
-    needs: context
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - '3.8'
+          - '3.9'
+          - '3.10'
+          - '3.11'
+        django-version:
+          - '2.2'
+          - '3.2'
+          - '4.2'
 
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v3
 
-      - name: Setup Python
+      - name: Setup Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
-          python-version: '3.8'
+          python-version: ${{ matrix.python-version }}
 
-      # This repo can't use the standard pycodestyle / license checker because
-      # of code contributed from other institutions
-      - name: Run Pycodestyle
-        shell: bash
+      - name: Install Dependencies
         run: |
-          pip install pycodestyle
-          pycodestyle ${DJANGO_APP}/ --exclude=migrations
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install coverage coveralls==3.3.1
 
-      - name: Check for UIUC License Headers
-        shell: bash
+      - name: Install Django ${{ matrix.django-version }}
+        run: pip install "Django~=${{ matrix.django-version }}.0"
+
+      - name: Setup Django
         run: |
-          DISPATCH_LICENSE_ERR=$(find ${DJANGO_APP} -type f -size +0 -path "*/dispatch.py" -name "*.py" -exec grep -PzL "# Copyright 2013 Board of Trustees, University of Illinois\n# SPDX-License-Identifier: Apache-2.0" {} \;)
-          FILTERS_LICENSE_ERR=$(find ${DJANGO_APP} -type f -size +0 -not -path "*/org_filters/uw_search.py" -path "*/org_filters/*" -name "*.py" -exec grep -PzL "# Copyright 2013 Board of Trustees, University of Illinois\n# SPDX-License-Identifier: Apache-2.0" {} \;)
-          LICENSE_ERR=$DISPATCH_LICENSE_ERR$FILTERS_LICENSE_ERR
-          if [[ ! -z $LICENSE_ERR ]]; then
-            echo "Missing License or Copyright information:"
-            echo "$LICENSE_ERR"
-            exit 1
-          fi
+          django-admin startproject project .
+          test -f ${CONF_PATH}/urls.py && cp ${CONF_PATH}/urls.py project/
+          test -f ${CONF_PATH}/settings.py && cat ${CONF_PATH}/settings.py >> project/settings.py
 
-      - name: Check for UW License Headers
-        shell: bash
+      - name: Run Python Linters
+        uses: uw-it-aca/actions/python-linters@main
+        with:
+          app_name: ${APP_NAME}
+          exclude_paths: 'migrations'
+
+      - name: Run Migrations
+        run: python manage.py migrate
+
+      - name: Run Tests
         run: |
-          LICENSE_ERR=$(find ${DJANGO_APP} -type f -size +0 -not -path "*/migrations/*" -not -path "*/org_filters/*" -not -path "*/dispatch.py" -name "*.py" -exec grep -PzL "# Copyright $(date +'%Y') UW-IT, University of Washington\n# SPDX-License-Identifier: Apache-2.0" {} \;)
-          if [[ ! -z $LICENSE_ERR ]]; then
-            echo "Missing License or Copyright information:"
-            echo "$LICENSE_ERR"
-            exit 1
-          fi
+          python -m compileall ${APP_NAME}/
+          python -Wd -m coverage run --source=${APP_NAME}/ manage.py test ${APP_NAME}
 
-      - name: Se up Docker Buildx
-        uses: docker/setup-buildx-action@v1
-
-      - name: Cache Docker layers
-        uses: actions/cache@v2
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-$(echo ${{ hashFiles('Dockerfile') }} | head -c 16)
-          restore-keys: |
-            ${{ runner.os }}-buildx-
-
-      - name: Build App Image
-        uses: docker/build-push-action@v2
-        with:
-          target: app-container
-          tags: ${{ needs.context.outputs.image_tag }}
-          push: false
-          load: true
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache
-
-      - name: Build Test Image
-        uses: docker/build-push-action@v2
-        with:
-          target: app-test-container
-          tags: app-test-container
-          push: false
-          load: true
-
-      - name: Run Test in Image
-        id: tests
-        shell: bash
-        run: >-
-          docker run -u root -t
-          -v ${PWD}:/coverage
-          -e DJANGO_APP="$DJANGO_APP"
-          -e "ENV=localdev"
-          app-test-container
-          bash -c ". ./docker/test.sh"
-
-      - name: Record Test Results
+      - name: Report Test Coverage
+        if: |
+          matrix.django-version == env.COVERAGE_DJANGO_VERSION &&
+          matrix.python-version == env.COVERAGE_PYTHON_VERSION
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
-        run: |
-          python -m pip install --upgrade pip coverage coveralls==3.3.1
-          coverage combine
-          coveralls
-
+        run: coveralls
