@@ -1,4 +1,4 @@
-# Copyright 2023 UW-IT, University of Washington
+# Copyright 2024 UW-IT, University of Washington
 # SPDX-License-Identifier: Apache-2.0
 
 """
@@ -8,9 +8,15 @@ This is the interface for interacting with the Spotseeker Server REST API
 from restclients_core.exceptions import DataFailureException
 from restclients_core.models import MockHTTP
 from uw_spotseeker.dao import Spotseeker_DAO
-from uw_spotseeker.models import (Spot, SpotType, SpotImage, ItemImage,
-                                  SpotItem, SpotAvailableHours,
-                                  SpotExtendedInfo)
+from uw_spotseeker.models import (
+    Spot,
+    SpotType,
+    SpotImage,
+    ItemImage,
+    SpotItem,
+    SpotAvailableHours,
+    SpotExtendedInfo,
+)
 from uw_spotseeker.exceptions import InvalidSpotID
 from typing import Tuple, List
 import json
@@ -27,28 +33,29 @@ logger = logging.getLogger(__name__)
 class Spotseeker(object):
 
     def _post_image(self, url, image: bytes) -> bytes:
-        headers = {"X-OAuth-User": os.getenv('OAUTH_USER')}
-        headers['files'] = {'image': ('image.jpg', image)}
+        headers = {"X-OAuth-User": os.getenv("OAUTH_USER")}
+        headers["files"] = {"image": ("image.jpg", image)}
 
         response = Spotseeker_DAO().postURL(url, headers)
         content = response.data
         status = response.status
         if status not in (200, 201):
-            raise DataFailureException(url, status,
-                                       getattr(response, 'reason', content))
+            raise DataFailureException(
+                url, status, getattr(response, "reason", content)
+            )
 
         return content
 
     def _delete_image(self, url, etag) -> None:
-        headers = {"X-OAuth-User": os.getenv('OAUTH_USER'),
-                   "If-Match": etag}
+        headers = {"X-OAuth-User": os.getenv("OAUTH_USER"), "If-Match": etag}
         response = Spotseeker_DAO().deleteURL(url, headers)
         content = response.data
         status = response.status
 
         if status != 200:
-            raise DataFailureException(url, status,
-                                       getattr(response, 'reason', content))
+            raise DataFailureException(
+                url, status, getattr(response, "reason", content)
+            )
 
     def post_image(self, spot_id, image: bytes) -> bytes:
         url = "/api/v1/spot/%s/image" % spot_id
@@ -76,7 +83,7 @@ class Spotseeker(object):
         if status != 200:
             raise DataFailureException(url, status, content)
 
-        results = json.loads(content.decode('utf-8'))
+        results = json.loads(content.decode("utf-8"))
         return results
 
     def get_filtered_spots_json(self, filters=[]) -> List[dict]:
@@ -118,11 +125,11 @@ class Spotseeker(object):
         results = self._get_spots_json(url)
         return self._spots_from_data(results)
 
-    def put_spot(self, spot_id, spot_json: str, etag) -> Tuple[MockHTTP,
-                                                               bytes]:
+    def put_spot(
+        self, spot_id, spot_json: str, etag
+    ) -> Tuple[MockHTTP, bytes]:
         url = "/api/v1/spot/%s" % spot_id
-        headers = {"X-OAuth-User": os.getenv('OAUTH_USER'),
-                   "If-Match": etag}
+        headers = {"X-OAuth-User": os.getenv("OAUTH_USER"), "If-Match": etag}
         response = Spotseeker_DAO().putURL(url, headers, spot_json)
 
         if response.status != 200:
@@ -132,8 +139,7 @@ class Spotseeker(object):
 
     def delete_spot(self, spot_id, etag) -> Tuple[MockHTTP, bytes]:
         url = "/api/v1/spot/%s" % spot_id
-        headers = {"X-OAuth-User": os.getenv('OAUTH_USER'),
-                   "If-Match": etag}
+        headers = {"X-OAuth-User": os.getenv("OAUTH_USER"), "If-Match": etag}
         response = Spotseeker_DAO().deleteURL(url, headers)
 
         content = response.data
@@ -146,8 +152,10 @@ class Spotseeker(object):
 
     def post_spot(self, spot_json: str) -> MockHTTP:
         url = "/api/v1/spot"
-        headers = {"X-OAuth-User": os.getenv('OAUTH_USER'),
-                   "Content-Type": "application/json"}
+        headers = {
+            "X-OAuth-User": os.getenv("OAUTH_USER"),
+            "Content-Type": "application/json",
+        }
         response = Spotseeker_DAO().postURL(url, headers, spot_json)
 
         content = response.data
@@ -185,16 +193,19 @@ class Spotseeker(object):
         spot.uri = spot_data["uri"]
         spot.latitude = spot_data["location"]["latitude"]
         spot.longitude = spot_data["location"]["longitude"]
-        spot.height_from_sea_level = \
-            spot_data["location"]["height_from_sea_level"]
+        spot.height_from_sea_level = spot_data["location"][
+            "height_from_sea_level"
+        ]
         spot.building_name = spot_data["location"]["building_name"]
-        spot.building_description = spot_data["location"].get("description",
-                                                              None)
+        spot.building_description = spot_data["location"].get(
+            "description", None
+        )
         spot.floor = spot_data["location"]["floor"]
         spot.room_number = spot_data["location"]["room_number"]
         spot.capacity = spot_data["capacity"]
-        spot.display_access_restrictions = \
-            spot_data["display_access_restrictions"]
+        spot.display_access_restrictions = spot_data[
+            "display_access_restrictions"
+        ]
         spot.organization = spot_data["organization"]
         spot.manager = spot_data["manager"]
         spot.etag = spot_data["etag"]
@@ -202,11 +213,13 @@ class Spotseeker(object):
 
         spot.last_modified = dateutil.parser.parse(spot_data["last_modified"])
         spot.spot_types = self._spot_types_from_data(spot_data["type"])
-        spot.spot_availability = \
-            self._spot_availability_from_data(spot_data["available_hours"])
+        spot.spot_availability = self._spot_availability_from_data(
+            spot_data["available_hours"]
+        )
         spot.images = self._spot_images_from_data(spot_data["images"])
-        spot.extended_info = \
-            self._extended_info_from_data(spot_data["extended_info"])
+        spot.extended_info = self._extended_info_from_data(
+            spot_data["extended_info"]
+        )
         spot.items = []
         if "items" in spot_data and len(spot_data["items"]) > 0:
             spot.items = self._items_from_data(spot_data["items"])
@@ -224,8 +237,9 @@ class Spotseeker(object):
             spot_item.images = []
             if "images" in item and len(item["images"]) > 0:
                 spot_item.images = self._item_images_from_data(item["images"])
-            spot_item.extended_info = \
-                self._extended_info_from_data(item["extended_info"])
+            spot_item.extended_info = self._extended_info_from_data(
+                item["extended_info"]
+            )
             spot_items.append(spot_item)
         return spot_items
 
@@ -242,7 +256,8 @@ class Spotseeker(object):
             item_image.width = image["width"]
             item_image.height = image["height"]
             item_image.creation_date = dateutil.parser.parse(
-                                       image["creation_date"])
+                image["creation_date"]
+            )
             item_image.upload_user = image["upload_user"]
             item_image.upload_application = image["upload_application"]
             item_image.thumbnail_root = image["thumbnail_root"]
@@ -264,9 +279,11 @@ class Spotseeker(object):
             spot_image.width = image["width"]
             spot_image.height = image["height"]
             spot_image.creation_date = dateutil.parser.parse(
-                                       image["creation_date"])
-            spot_image.modification_date = \
-                dateutil.parser.parse(image["modification_date"])
+                image["creation_date"]
+            )
+            spot_image.modification_date = dateutil.parser.parse(
+                image["modification_date"]
+            )
             spot_image.upload_user = image["upload_user"]
             spot_image.upload_application = image["upload_application"]
             spot_image.thumbnail_root = image["thumbnail_root"]
@@ -276,7 +293,8 @@ class Spotseeker(object):
         return images
 
     def _spot_availability_from_data(
-            self, avaliblity_data) -> List[SpotAvailableHours]:
+        self, avaliblity_data
+    ) -> List[SpotAvailableHours]:
         availability = []
 
         for day in avaliblity_data:
@@ -290,14 +308,14 @@ class Spotseeker(object):
 
     def _parse_time(self, value):
         time_re = re.compile(
-            r'(?P<hour>\d{1,2}):(?P<minute>\d{1,2})'
-            r'(?::(?P<second>\d{1,2})(?:\.(?P<microsecond>\d{1,6})\d{0,6})?)?'
+            r"(?P<hour>\d{1,2}):(?P<minute>\d{1,2})"
+            r"(?::(?P<second>\d{1,2})(?:\.(?P<microsecond>\d{1,6})\d{0,6})?)?"
         )
         match = time_re.match(value)
         if match:
             kw = match.groupdict()
-            if kw['microsecond']:
-                kw['microsecond'] = kw['microsecond'].ljust(6, '0')
+            if kw["microsecond"]:
+                kw["microsecond"] = kw["microsecond"].ljust(6, "0")
             kw = {k: int(v) for k, v in kw.items() if v is not None}
             return datetime.time(**kw)
 
@@ -308,40 +326,47 @@ class Spotseeker(object):
         return spot_types
 
     def _validate_spotid(self, spotid):
-        if (not type(spotid) is int):
+        if not type(spotid) is int:
             raise InvalidSpotID
 
     def _extended_info_from_data(self, info_data) -> List[SpotExtendedInfo]:
         extended_info = []
 
         for attribute in info_data:
-            spot_extended_info = SpotExtendedInfo(key=attribute,
-                                                  value=info_data[attribute])
+            spot_extended_info = SpotExtendedInfo(
+                key=attribute, value=info_data[attribute]
+            )
             extended_info.append(spot_extended_info)
         return extended_info
 
-    def _get_image(self, image_app_type, parent_id,
-                   image_id, width=None) -> Tuple[MockHTTP, bytes]:
+    def _get_image(
+        self, image_app_type, parent_id, image_id, width=None
+    ) -> Tuple[MockHTTP, bytes]:
         if width is not None:
             url = "/api/v1/%s/%s/image/%s/thumb/constrain/width:%s" % (
                 image_app_type,
                 parent_id,
                 image_id,
-                width)
+                width,
+            )
         else:
-            url = "/api/v1/%s/%s/image/%s" % (image_app_type,
-                                              parent_id,
-                                              image_id)
+            url = "/api/v1/%s/%s/image/%s" % (
+                image_app_type,
+                parent_id,
+                image_id,
+            )
 
         response = Spotseeker_DAO().getURL(url)
         content = response.data
 
         return response, content
 
-    def get_item_image(self, parent_id,
-                       image_id, width=None) -> Tuple[MockHTTP, bytes]:
+    def get_item_image(
+        self, parent_id, image_id, width=None
+    ) -> Tuple[MockHTTP, bytes]:
         return self._get_image("item", parent_id, image_id, width)
 
-    def get_spot_image(self, parent_id,
-                       image_id, width=None) -> Tuple[MockHTTP, bytes]:
+    def get_spot_image(
+        self, parent_id, image_id, width=None
+    ) -> Tuple[MockHTTP, bytes]:
         return self._get_image("spot", parent_id, image_id, width)
