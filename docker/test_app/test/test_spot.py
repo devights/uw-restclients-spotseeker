@@ -16,7 +16,8 @@ from io import BytesIO
 class SpotseekerTestSpot(TestCase):
 
     def setUp(self):
-        # TODO: eventually move these resources to test_app if no external apps depend on this path
+        # TODO: eventually move these resources to test_app if no external apps
+        # depend on this path
         self.api_path = "/app/uw_spotseeker/resources/spotseeker/file/api/v1/"
 
     def test_get_all_spots(self):
@@ -44,7 +45,8 @@ class SpotseekerTestSpot(TestCase):
         self.assertEqual(spot_data.etag, "686897696a7c876b7e")
         self.assertEqual(spot_data.external_id, "asd123")
         self.assertEqual(
-            spot_data.last_modified, dateutil.parser.parse("2012-07-13T05:00:00+00:00")
+            spot_data.last_modified,
+            dateutil.parser.parse("2012-07-13T05:00:00+00:00"),
         )
 
         self._assert_spot_types(spot_data.spot_types, ["study_room", "cafe"])
@@ -63,11 +65,16 @@ class SpotseekerTestSpot(TestCase):
             dateutil.parser.parse("Mon, 07 Nov 1994 01:49:37 GMT"),
         )
         self.assertEqual(spot_data.images[0].upload_user, "user name")
-        self.assertEqual(spot_data.images[0].upload_application, "application name")
         self.assertEqual(
-            spot_data.images[0].thumbnail_root, "/api/v1/spot/123/image/1/thumb"
+            spot_data.images[0].upload_application, "application name"
         )
-        self.assertEqual(spot_data.images[0].description, "Information about the image")
+        self.assertEqual(
+            spot_data.images[0].thumbnail_root,
+            "/api/v1/spot/123/image/1/thumb",
+        )
+        self.assertEqual(
+            spot_data.images[0].description, "Information about the image"
+        )
         self.assertEqual(spot_data.images[0].display_index, 0)
 
         self.assertEqual(len(spot_data.spot_availability), 7)
@@ -112,7 +119,8 @@ class SpotseekerTestSpot(TestCase):
         self.assertEqual(spot_data.manager, "Test Manager")
         self.assertEqual(spot_data.etag, "123456789")
         self.assertEqual(
-            spot_data.last_modified, dateutil.parser.parse("2012-07-13T05:00:00+00:00")
+            spot_data.last_modified,
+            dateutil.parser.parse("2012-07-13T05:00:00+00:00"),
         )
 
         self.assertEqual(len(spot_data.images), 1)
@@ -130,11 +138,16 @@ class SpotseekerTestSpot(TestCase):
             dateutil.parser.parse("Mon, 07 Nov 1994 01:49:37 GMT"),
         )
         self.assertEqual(spot_data.images[0].upload_user, "user name")
-        self.assertEqual(spot_data.images[0].upload_application, "application name")
         self.assertEqual(
-            spot_data.images[0].thumbnail_root, "/api/v1/spot/123/image/1/thumb"
+            spot_data.images[0].upload_application, "application name"
         )
-        self.assertEqual(spot_data.images[0].description, "Information about the image")
+        self.assertEqual(
+            spot_data.images[0].thumbnail_root,
+            "/api/v1/spot/123/image/1/thumb",
+        )
+        self.assertEqual(
+            spot_data.images[0].description, "Information about the image"
+        )
         self.assertEqual(spot_data.images[0].display_index, 0)
 
         self.assertEqual(len(spot_data.spot_availability), 5)
@@ -151,7 +164,9 @@ class SpotseekerTestSpot(TestCase):
     def test_post_spot(self):
         spotseeker = Spotseeker()
         spot_data = spotseeker.get_spot_by_id(1)
-        self.assertRaises(DataFailureException, spotseeker.post_spot, spot_data)
+        self.assertRaises(
+            DataFailureException, spotseeker.post_spot, spot_data
+        )
 
     def test_delete_spot(self):
         spotseeker = Spotseeker()
@@ -211,5 +226,7 @@ class SpotseekerTestSpot(TestCase):
         self.assertEqual(set(spot_types), set(type_stings))
 
     def _assert_spot_extended_info(self, spot_ei_data, ei_tuples):
-        spot_ei_tuples = [(spot_ei.key, spot_ei.value) for spot_ei in spot_ei_data]
+        spot_ei_tuples = [
+            (spot_ei.key, spot_ei.value) for spot_ei in spot_ei_data
+        ]
         self.assertEqual(set(spot_ei_tuples), set(ei_tuples))

@@ -148,7 +148,9 @@ class SpotImageView(View):
         resp, content = spotseeker.get_spot_image(spot_id, img_id)
 
         etag = resp.headers.get("etag")
-        response = HttpResponse(content, content_type=resp.headers.get("Content-Type"))
+        response = HttpResponse(
+            content, content_type=resp.headers.get("Content-Type")
+        )
         response["etag"] = etag
         return response
 
@@ -176,7 +178,9 @@ class ItemImageView(View):
         resp, content = spotseeker.get_item_image(item_id, img_id)
 
         etag = resp.headers.get("etag")
-        response = HttpResponse(content, content_type=resp.headers.get("Content-Type"))
+        response = HttpResponse(
+            content, content_type=resp.headers.get("Content-Type")
+        )
         response["etag"] = etag
         return response
 
