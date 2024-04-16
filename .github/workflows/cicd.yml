@@ -78,8 +78,8 @@ jobs:
           app_name: ${APP_NAME}
           exclude_paths: 'migrations'
 
-      - name: Run Migrations
-        run: python manage.py migrate
+      # - name: Run Migrations
+      #   run: python manage.py migrate
 
       - name: Run Tests
         run: |
