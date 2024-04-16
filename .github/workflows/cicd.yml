@@ -94,8 +94,8 @@ jobs:
       - name: Build Test Image
         uses: docker/build-push-action@v2
         with:
-          target: app-test-container
-          tags: app-test-container
+          target: app-container
+          tags: app-container
           push: false
           load: true
 
@@ -107,7 +107,7 @@ jobs:
           -v ${PWD}:/coverage
           -e DJANGO_APP="$TEST_APP_NAME"
           -e "ENV=localdev"
-          app-test-container
+          app-container
           bash -c ". ./conf/test.sh"
 
       - name: Record Test Results
