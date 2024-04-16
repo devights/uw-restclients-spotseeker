@@ -108,7 +108,7 @@ jobs:
           -e DJANGO_APP="$TEST_APP_NAME"
           -e "ENV=localdev"
           app-container
-          bash -c ". ./conf/test.sh"
+          bash -c ". ./test.sh"
 
       - name: Record Test Results
         env:

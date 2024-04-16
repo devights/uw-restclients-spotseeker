@@ -10,6 +10,7 @@ COPY --chown=acait:acait ./uw_spotseeker/ /app/uw_spotseeker
 
 COPY --chown=acait:acait ./conf/urls.py /app/project/urls.py
 COPY --chown=acait:acait ./conf/settings.py /app/project/settings.py
+COPY --chown=acait:acait ./conf/test.sh /app/test.sh
 
 WORKDIR /app/
 
