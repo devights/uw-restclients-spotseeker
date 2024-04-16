@@ -31,6 +31,6 @@ run_test "coverage run --source=${DJANGO_APP} --omit=*/migrations/*,${DJANGO_APP
 cp .coverage* /coverage
 pwd
 echo "Looking inside coverage"
-ls -a /coverage
+ls -a ../coverage
 
 exit 0
