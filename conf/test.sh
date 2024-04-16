@@ -30,6 +30,6 @@ run_test "coverage run --source=${DJANGO_APP} --omit=*/migrations/*,${DJANGO_APP
 # put generaged coverage result where it will get processed
 cp .coverage* /coverage
 echo "Looking inside coverage"
-ls /coverage
+ls -a /coverage
 
 exit 0
