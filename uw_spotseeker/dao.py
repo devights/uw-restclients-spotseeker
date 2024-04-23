@@ -20,7 +20,7 @@ logger = getLogger(__name__)
 
 class Spotseeker_DAO(DAO):
     def service_name(self):
-        return 'spotseeker'
+        return "spotseeker"
 
     def service_mock_paths(self):
         path = [abspath(os.path.join(dirname(__file__), "resources"))]
@@ -38,24 +38,22 @@ class Spotseeker_LiveDAO(LiveDAO):
 
     def load(self, method, url, headers, body) -> MockHTTP:
         if body is None:
-            body = ''
-        logger.debug(f'body: {body}')
+            body = ""
+        logger.debug(f"body: {body}")
 
         url = settings.RESTCLIENTS_SPOTSEEKER_HOST + url
 
-        headers['Authorization'] = self.get_auth_header()
+        headers["Authorization"] = self.get_auth_header()
 
-        if 'files' in headers:
-            files = headers['files']
-            del headers['files']
+        if "files" in headers:
+            files = headers["files"]
+            del headers["files"]
         else:
             files = None
 
-        requests_response = requests.request(method,
-                                             url,
-                                             data=body,
-                                             files=files,
-                                             headers=headers)
+        requests_response = requests.request(
+            method, url, data=body, files=files, headers=headers
+        )
 
         response = self.process_response(requests_response)
 
@@ -72,32 +70,32 @@ class Spotseeker_LiveDAO(LiveDAO):
     def set_token_in_cache(self, token: str, expiry: int) -> None:
         # set cache key to be app name
         key_name = settings.APP_NAME
-        logger.debug(f'Setting {key_name} in cache for {expiry} seconds')
+        logger.debug(f"Setting {key_name} in cache for {expiry} seconds")
         cache.set(key_name, token, timeout=expiry - self.EPSILON)
 
     def get_access_token(self) -> str:
         headers = {
-            'Authorization': 'Basic ' + settings.SPOTSEEKER_OAUTH_CREDENTIAL,
-            'Cache-Control': 'no-cache',
-            'Content-Type': 'application/x-www-form-urlencoded',
+            "Authorization": "Basic " + settings.SPOTSEEKER_OAUTH_CREDENTIAL,
+            "Cache-Control": "no-cache",
+            "Content-Type": "application/x-www-form-urlencoded",
         }
 
         data = {
-            'grant_type': 'client_credentials',
-            'scope': settings.SPOTSEEKER_OAUTH_SCOPE,
+            "grant_type": "client_credentials",
+            "scope": settings.SPOTSEEKER_OAUTH_SCOPE,
         }
 
-        url = settings.RESTCLIENTS_SPOTSEEKER_HOST + '/auth/token/'
+        url = settings.RESTCLIENTS_SPOTSEEKER_HOST + "/auth/token/"
 
         response = requests.post(url, headers=headers, data=data)
 
         json_resp = response.json()
 
-        if 'access_token' not in json_resp:
-            raise Exception(f'Error in authentication: {json_resp}')
+        if "access_token" not in json_resp:
+            raise Exception(f"Error in authentication: {json_resp}")
 
-        access_token = json_resp['access_token']
-        expiry = json_resp['expires_in']
+        access_token = json_resp["access_token"]
+        expiry = json_resp["expires_in"]
         self.set_token_in_cache(access_token, expiry)
 
         return access_token
@@ -109,14 +107,14 @@ class Spotseeker_LiveDAO(LiveDAO):
 
         # console log token for debugging
         if token is None:
-            logger.debug(f'No token found in cache for {key_name}')
+            logger.debug(f"No token found in cache for {key_name}")
             token = self.get_access_token()
         else:
-            logger.debug(f'Using token from cache for {key_name}')
+            logger.debug(f"Using token from cache for {key_name}")
 
         return token
 
     def get_auth_header(self) -> str:
         token = self._get_access_token_from_cache()
 
-        return f'Bearer {token}'
+        return f"Bearer {token}"

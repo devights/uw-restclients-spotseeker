@@ -3,69 +3,119 @@
 #
 # Preconditions:
 #
-#  1) Application test suite is kicked off by DIR_NAME/test.py
-#
-#  2) Application contains a setup.py file
-#
-#  3) Application repo has access to the required secret
-#     at https://github.com/organizations/uw-it-aca/settings/secrets:
-#
-#     PYPI_API_TOKEN
+#  1) Application contains a setup.py file
 #
 # To adapt this config to a specific Python app:
 #
-#  1) Set DIR_NAME to the name of the package name/directory.
+#  1) Set APP_NAME to the name of the package name/directory.
 #
-#  2) Verify that the lists of branches for push/pull_request is appropriate,
+#  2) Set CONF_PATH to a path containing a urls.py and/or settings.py file
+#     used by the test suite, if any
+#
+#  3) Verify that the lists of branches for push/pull_request is appropriate,
 #     and add other branch names if needed.
 #
+#  4) Update the matrix of django versions to test, if necessary.
+#
 ---
-name: 'Lint and Test'
+name: tests
 
 env:
-  DIR_NAME: uw_spotseeker
+  APP_NAME: uw_spotseeker
+  TEST_APP_NAME: test_app
+  RELEASE_NAME: uw_spotseeker
+  CONF_PATH: conf
+  COVERAGE_DJANGO_VERSION: "4.2"
+  COVERAGE_PYTHON_VERSION: "3.10"
 
 on:
   push:
-    branches: [main, qa, develop, django-upgrade]
+    branches: [main, develop]
   pull_request:
-    branches: [main, qa, develop, django-upgrade]
+    branches: [main, develop]
     types: [opened, reopened, synchronize]
   release:
     branches: [main]
     types: [published]
 
 jobs:
+  context:
+    runs-on: ubuntu-22.04
+
+    outputs:
+      commit_hash: ${{ steps.context.outputs.commit_hash }}
+      git_repo_branch: ${{ steps.context.outputs.git_repo_branch }}
+      image_tag: ${{ steps.context.outputs.image_tag }}
+
+    steps:
+      - name: Set up context
+        id: context
+        uses: uw-it-aca/actions/cicd-context@main
+        with:
+          release-name: ${{ env.RELEASE_NAME }}
+
   test:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.10"
+        django-version:
+          - "4.2"
 
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v3
 
-      - name: Setup Python
+      - name: Setup Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
-          python-version: '3.8'
-
-      - name: Install Dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e .
-          pip install commonconf nose2 coverage coveralls==3.3.1
+          python-version: ${{ matrix.python-version }}
 
       - name: Run Python Linters
         uses: uw-it-aca/actions/python-linters@main
         with:
-          app_name: ${DIR_NAME}
+          app_name: ${APP_NAME}
+          exclude_paths: "migrations"
 
-      - name: Run Tests
-        run: |
-          python -m compileall ${DIR_NAME}/
-          coverage run ${DIR_NAME}/test.py -v
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Cache Docker Layers
+        uses: actions/cache@v2
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-$(echo ${{ hashFiles('Dockerfile') }} | head -c 16)
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      - name: Build Test Image
+        uses: docker/build-push-action@v2
+        with:
+          target: app-container
+          tags: app-container
+          push: false
+          load: true
+
+      - name: Run Tests in Image
+        id: tests
+        shell: bash
+        run: >-
+          docker run -u root -t
+          -v ${PWD}:/coverage
+          -e DJANGO_APP="$TEST_APP_NAME"
+          -e APP_NAME="$APP_NAME"
+          -e "ENV=localdev"
+          app-container
+          bash -c ". ./test.sh"
 
       - name: Report Test Coverage
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
-        run: coveralls
+        run: |
+          python -m pip install --upgrade pip coverage coveralls==3.3.1
+          coverage combine
+          coveralls

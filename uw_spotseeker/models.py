@@ -8,6 +8,7 @@ class SpotType(models.Model):
     """
     The type of Spot.
     """
+
     name = models.SlugField(max_length=50)
 
 
@@ -28,6 +29,7 @@ class SpotExtendedInfo(models.Model):
     Additional institution-provided metadata about a spot. If providing custom
     metadata, you should provide a validator for that data, as well.
     """
+
     key = models.CharField(max_length=50)
     value = models.CharField(max_length=255)
 
@@ -53,18 +55,17 @@ class SpotImage(models.Model):
 
 
 class Spot(models.Model):
-    """ Represents a place for students to study.
-    """
+    """Represents a place for students to study."""
+
     spot_id = models.IntegerField()
     name = models.CharField(max_length=100, blank=True)
     uri = models.CharField(max_length=255)
     thumbnail_root = models.CharField(max_length=255)
     latitude = models.DecimalField(max_digits=11, decimal_places=8, null=True)
     longitude = models.DecimalField(max_digits=11, decimal_places=8, null=True)
-    height_from_sea_level = models.DecimalField(max_digits=11,
-                                                decimal_places=8,
-                                                null=True,
-                                                blank=True)
+    height_from_sea_level = models.DecimalField(
+        max_digits=11, decimal_places=8, null=True, blank=True
+    )
     building_name = models.CharField(max_length=100, blank=True)
     floor = models.CharField(max_length=50, blank=True)
     room_number = models.CharField(max_length=25, blank=True)
@@ -75,11 +76,9 @@ class Spot(models.Model):
     manager = models.CharField(max_length=50, blank=True)
     etag = models.CharField(max_length=40)
     last_modified = models.DateTimeField()
-    external_id = models.CharField(max_length=100,
-                                   null=True,
-                                   blank=True,
-                                   default=None,
-                                   unique=True)
+    external_id = models.CharField(
+        max_length=100, null=True, blank=True, default=None, unique=True
+    )
 
 
 class SpotItem(models.Model):
