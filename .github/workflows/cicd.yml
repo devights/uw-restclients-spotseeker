@@ -102,23 +102,18 @@ jobs:
       - name: Run Tests in Image
         id: tests
         shell: bash
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: >-
           docker run -u root -t
           -v ${PWD}:/coverage
           -e DJANGO_APP="$TEST_APP_NAME"
-          -e COVERALLS_REPO_TOKEN="$GITHUB_TOKEN"
           -e "ENV=localdev"
           app-container
           bash -c ". ./test.sh"
 
-      # - name: Record Test Results
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #   shell: bash
-      #   run: |
-      #     docker run -u root -t app-container bash -c "coveralls"
-      # docker cp $(docker ps -alq):/coverage .
-      # python -m pip install --upgrade pip coverage coveralls==3.3.1
-      # coveralls
+      - name: Report Test Coverage
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip coveralls==3.3.1
+          coveralls
