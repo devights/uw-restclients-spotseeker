@@ -108,6 +108,7 @@ jobs:
           docker run -u root -t
           -v ${PWD}:/coverage
           -e DJANGO_APP="$TEST_APP_NAME"
+          -e COVERALLS_REPO_TOKEN="$GITHUB_TOKEN"
           -e "ENV=localdev"
           app-container
           bash -c ". ./test.sh"
