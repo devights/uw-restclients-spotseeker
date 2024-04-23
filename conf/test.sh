@@ -12,7 +12,7 @@ trap catch ERR
 source bin/activate
 
 # install test tooling
-pip install coverage
+pip install coverage coveralls==3.3.1
 
 function run_test {
     echo "##########################"
@@ -29,5 +29,7 @@ run_test "coverage run --source=${DJANGO_APP} --omit=*/migrations/*,${DJANGO_APP
 
 # put generaged coverage result where it will get processed
 cp .coverage* /coverage
+
+coveralls
 
 exit 0

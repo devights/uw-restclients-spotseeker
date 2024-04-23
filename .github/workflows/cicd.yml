@@ -102,6 +102,8 @@ jobs:
       - name: Run Tests in Image
         id: tests
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: >-
           docker run -u root -t
           -v ${PWD}:/coverage
@@ -110,12 +112,12 @@ jobs:
           app-container
           bash -c ". ./test.sh"
 
-      - name: Record Test Results
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: bash
-        run: |
-          docker run -u root -t app-container coveralls
-          # docker cp $(docker ps -alq):/coverage .
-          # python -m pip install --upgrade pip coverage coveralls==3.3.1
-          # coveralls
+      # - name: Record Test Results
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   shell: bash
+      #   run: |
+      #     docker run -u root -t app-container bash -c "coveralls"
+      # docker cp $(docker ps -alq):/coverage .
+      # python -m pip install --upgrade pip coverage coveralls==3.3.1
+      # coveralls
