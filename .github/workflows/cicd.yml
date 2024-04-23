@@ -116,5 +116,8 @@ jobs:
         shell: bash
         run: |
           python -m pip install --upgrade pip coverage coveralls==3.3.1
-          # coverage combine --data-file=/app/.coverage
+          ls
+          ls /app/
+          ls /coverage/
+          coverage combine --data-file=/app/.coverage
           coveralls
