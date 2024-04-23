@@ -115,9 +115,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
+          docker cp ${docker ps -alq}:/coverage/ .
           python -m pip install --upgrade pip coverage coveralls==3.3.1
-          ls
-          ls /app/
-          ls /coverage/
-          coverage combine --data-file=/app/.coverage
+          coverage combine
           coveralls
