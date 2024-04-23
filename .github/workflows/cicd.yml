@@ -116,7 +116,7 @@ jobs:
         shell: bash
         run: |
           docker cp $(docker ps -alq):/coverage .
-          ls -a
+          # ls -a
           python -m pip install --upgrade pip coverage coveralls==3.3.1
-          coverage combine 
+          # coverage combine 
           coveralls
